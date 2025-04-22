@@ -1,18 +1,29 @@
-# Use official Tomcat image
+# Stage 1: Compile Java files
+FROM openjdk:17 AS builder
+
+WORKDIR /app
+
+# Copy servlet source code
+COPY backend/classes/YourServlet.java .
+
+# Download servlet-api.jar (you could also ADD it to the project instead)
+RUN mkdir -p lib && \
+    curl -o lib/servlet-api.jar https://repo1.maven.org/maven2/javax/servlet/javax.servlet-api/4.0.1/javax.servlet-api-4.0.1.jar
+
+# Compile servlet
+RUN javac -cp lib/servlet-api.jar YourServlet.java
+
+# Stage 2: Use Tomcat to serve app
 FROM tomcat:9.0
 
 # Clean default webapps
 RUN rm -rf /usr/local/tomcat/webapps/*
 
-# Copy static files
-COPY index.html /usr/local/tomcat/webapps/ROOT/
-COPY styles.css /usr/local/tomcat/webapps/ROOT/
-COPY script.js /usr/local/tomcat/webapps/ROOT/
+# Copy static frontend files
+COPY index.html styles.css script.js /usr/local/tomcat/webapps/ROOT/
 
-# Copy Java servlet files if you have them precompiled (class files + web.xml)
-COPY backend/ /usr/local/tomcat/webapps/ROOT/WEB-INF/
+# Copy servlet and config
+COPY --from=builder /app/YourServlet.class /usr/local/tomcat/webapps/ROOT/WEB-INF/classes/
+COPY backend/WEB-INF/web.xml /usr/local/tomcat/webapps/ROOT/WEB-INF/
 
-# Expose port
 EXPOSE 8080
-
-# Start Tomcat (default CMD works)
